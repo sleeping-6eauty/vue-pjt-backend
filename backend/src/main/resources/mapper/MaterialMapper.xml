@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.backend.mapper.MaterialMapper">
+
+    <sql id="latestStorageJoin">
+        LEFT JOIN (
+            SELECT
+                s.part_id,
+                s.stock_date,
+                s.stock_qty AS currentStock
+            FROM storage s
+            INNER JOIN (
+                SELECT part_id, MAX(stock_date) AS max_stock_date
+                FROM storage
+                GROUP BY part_id
+            ) latest
+                ON s.part_id = latest.part_id
+               AND s.stock_date = latest.max_stock_date
+        ) st ON st.part_id = b.part_id
+    </sql>
+
+    <sql id="demandJoin">
+        LEFT JOIN (
+            SELECT
+                o.part_id,
+                COUNT(*) AS demandQty
+            FROM `orders` o
+            WHERE o.part_id IS NOT NULL
+              AND TRIM(o.part_id) &lt;&gt; ''
+              AND (
+                    o.order_status IS NULL
+                    OR UPPER(o.order_status) NOT IN ('COMPLETED', 'DONE', 'CANCELED', 'CANCELLED')
+              )
+            GROUP BY o.part_id
+        ) od ON od.part_id = b.part_id
+    </sql>
+
+    <sql id="materialColumns">
+        b.part_id AS materialId,
+        b.part_name AS name,
+        IFNULL(st.currentStock, 0) AS currentStock,
+        IFNULL(b.qty, 0) AS safetyStock,
+        IFNULL(od.demandQty, 0) AS demandQty,
+        IFNULL(p.part_price, 0) AS unitPrice,
+        GREATEST(
+            0,
+            IFNULL(b.qty, 0) + IFNULL(od.demandQty, 0) - IFNULL(st.currentStock, 0)
+        ) AS requiredStock,
+        CASE
+            WHEN IFNULL(st.currentStock, 0) &lt; IFNULL(b.qty, 0) THEN 'danger'
+            WHEN (
+                IFNULL(b.qty, 0) + IFNULL(od.demandQty, 0) - IFNULL(st.currentStock, 0)
+            ) &gt; 0 THEN 'shortage'
+            ELSE 'normal'
+        END AS status,
+        GREATEST(
+            0,
+            IFNULL(b.qty, 0) + IFNULL(od.demandQty, 0) - IFNULL(st.currentStock, 0)
+        ) * IFNULL(p.part_price, 0) AS additionalPurchaseCost
+    </sql>
+
+    <select id="selectMaterials" resultType="com.example.backend.dto.MaterialDto">
+        SELECT
+            ROW_NUMBER() OVER (ORDER BY b.part_id ASC) AS id,
+            <include refid="materialColumns" />
+        FROM bom b
+        LEFT JOIN price p ON p.part_id = b.part_id
+        <include refid="latestStorageJoin" />
+        <include refid="demandJoin" />
+        ORDER BY b.part_id ASC
+    </select>
+
+    <select id="selectMaterialByMaterialId" resultType="com.example.backend.dto.MaterialDto">
+        SELECT
+            0 AS id,
+            <include refid="materialColumns" />
+        FROM bom b
+        LEFT JOIN price p ON p.part_id = b.part_id
+        <include refid="latestStorageJoin" />
+        <include refid="demandJoin" />
+        WHERE b.part_id = #{materialId}
+        LIMIT 1
+    </select>
+
+    <select id="selectMaterialHistory" resultType="com.example.backend.dto.MaterialHistoryDto">
+        SELECT
+            ROW_NUMBER() OVER (ORDER BY h.stock_date DESC, h.part_id ASC) AS id,
+            DATE_FORMAT(h.stock_date, '%Y-%m-%d') AS date,
+            DATE_FORMAT(h.stock_date, '%H:%i') AS time,
+            h.part_id AS materialId,
+            b.part_name AS materialName,
+            CASE
+                WHEN COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) &gt; 0 THEN 'in'
+                WHEN COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) &lt; 0 THEN 'out'
+                ELSE 'adjust'
+            END AS type,
+            CASE
+                WHEN COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) &gt; 0 THEN 'Inbound'
+                WHEN COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) &lt; 0 THEN 'Usage'
+                ELSE 'Adjust'
+            END AS typeLabel,
+            COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) AS delta,
+            h.stock_qty AS afterStock,
+            CASE
+                WHEN h.prev_stock_qty IS NULL THEN 'Initial stock snapshot'
+                WHEN h.stock_qty &gt; h.prev_stock_qty THEN 'Stock replenished'
+                WHEN h.stock_qty &lt; h.prev_stock_qty THEN 'Stock consumed'
+                ELSE 'Stock adjusted'
+            END AS reason
+        FROM (
+            SELECT
+                s.part_id,
+                s.stock_date,
+                s.stock_qty,
+                LAG(s.stock_qty) OVER (
+                    PARTITION BY s.part_id
+                    ORDER BY s.stock_date
+                ) AS prev_stock_qty
+            FROM storage s
+        ) h
+        JOIN bom b ON b.part_id = h.part_id
+        ORDER BY h.stock_date DESC, h.part_id ASC
+    </select>
+
+    <insert id="insertStorageSnapshot">
+        INSERT INTO storage (
+            part_id,
+            stock_date,
+            stock_qty
+        )
+        SELECT
+            #{materialId},
+            CASE
+                WHEN MAX(s.stock_date) IS NULL OR MAX(s.stock_date) &lt; NOW() THEN NOW()
+                ELSE DATE_ADD(MAX(s.stock_date), INTERVAL 1 SECOND)
+            END,
+            #{stockQty}
+        FROM storage s
+        WHERE s.part_id = #{materialId}
+    </insert>
+</mapper>
