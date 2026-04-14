@@ -44,17 +44,30 @@ public class MaterialService {
     public MaterialDto useMaterialStock(String materialId) {
         MaterialDto target = getRequiredMaterial(materialId);
 
-        int plannedUsage = safe(target.getDemandQty());
-        if (plannedUsage <= 0) {
-            plannedUsage = Math.max(1, safe(target.getSafetyStock()));
-        }
-
-        int usedQty = Math.min(safe(target.getCurrentStock()), plannedUsage);
-        if (usedQty <= 0) {
+        int currentStock = safe(target.getCurrentStock());
+        int pendingDemandQty = safe(target.getDemandQty());
+        if (currentStock <= 0 || pendingDemandQty <= 0) {
             return materialMapper.selectMaterialByMaterialId(materialId);
         }
 
-        int nextStock = safe(target.getCurrentStock()) - usedQty;
+        int bomQty = safe(materialMapper.selectBomQtyByMaterialId(materialId));
+        if (bomQty <= 0) {
+            bomQty = 1;
+        }
+
+        int pendingOrderCount = pendingDemandQty / bomQty;
+        int fulfillableOrderCount = Math.min(pendingOrderCount, currentStock / bomQty);
+        if (fulfillableOrderCount <= 0) {
+            return materialMapper.selectMaterialByMaterialId(materialId);
+        }
+
+        int updatedOrderCount = materialMapper.updatePendingOrdersToCompleted(materialId, fulfillableOrderCount);
+        if (updatedOrderCount <= 0) {
+            return materialMapper.selectMaterialByMaterialId(materialId);
+        }
+
+        int usedQty = updatedOrderCount * bomQty;
+        int nextStock = Math.max(0, currentStock - usedQty);
         materialMapper.insertStorageSnapshot(materialId, nextStock);
 
         return materialMapper.selectMaterialByMaterialId(materialId);
