@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.backend.mapper.BackendMapper">
+
+    <select id="findAll" resultType="com.example.backend.dto.OrderDto">
+        SELECT
+            row_id,
+            order_id,
+            vehicle_type,
+            sequence,
+            part_id,
+            order_date,
+            order_status
+        FROM orders
+        ORDER BY row_id ASC
+    </select>
+
+    <select id="getOrdersSummary" resultType="com.example.backend.dto.OrdersSummaryDto">
+        SELECT
+            COUNT(DISTINCT order_id) AS total_orders,
+            COUNT(DISTINCT CASE WHEN UPPER(order_status) = 'PENDING' THEN order_id END) AS pending_orders,
+            COUNT(DISTINCT CASE WHEN UPPER(order_status) = 'COMPLETED' THEN order_id END) AS completed_orders
+        FROM orders
+    </select>
+
+    <select id="getVehicleTypeCounts" resultType="com.example.backend.dto.VehicleRatioDto">
+        SELECT
+            vehicle_type,
+            COUNT(DISTINCT order_id) AS order_count,
+            0 AS ratio
+        FROM orders
+        GROUP BY vehicle_type
+        ORDER BY vehicle_type ASC
+    </select>
+
+    <sql id="orderTableFilteredBaseQuery">
+        FROM (
+            SELECT
+                order_id,
+                MAX(vehicle_type) AS vehicle_type,
+                MAX(CASE WHEN sequence = 'ENGINE' THEN part_id END) AS engine,
+                MAX(CASE WHEN sequence = 'DRIVE' THEN part_id END) AS drive,
+                MAX(CASE WHEN sequence = 'TIRE' THEN part_id END) AS tire,
+                MAX(CASE WHEN sequence = 'SEAT' THEN part_id END) AS seat,
+                NULLIF(
+                    GROUP_CONCAT(
+                        CASE
+                            WHEN sequence = 'OPTION' AND part_id IS NOT NULL AND part_id &lt;&gt; 'NULL' THEN part_id
+                            ELSE NULL
+                        END
+                        ORDER BY part_id
+                        SEPARATOR ', '
+                    ),
+                    ''
+                ) AS `option`,
+                MAX(order_date) AS order_date,
+                MAX(order_status) AS order_status
+            FROM orders
+            GROUP BY order_id
+        ) t
+        WHERE 1 = 1
+        <if test="vehicleType != null and vehicleType != ''">
+            AND t.vehicle_type = #{vehicleType}
+        </if>
+        <if test="engine != null and engine != ''">
+            AND t.engine = #{engine}
+        </if>
+        <if test="drive != null and drive != ''">
+            AND t.drive = #{drive}
+        </if>
+        <if test="tire != null and tire != ''">
+            AND t.tire = #{tire}
+        </if>
+        <if test="seat != null and seat != ''">
+            AND t.seat = #{seat}
+        </if>
+        <if test="optionPartId != null and optionPartId != '' and optionPartId != '__NONE__'">
+            AND EXISTS (
+                SELECT 1
+                FROM orders o2
+                WHERE o2.order_id = t.order_id
+                  AND o2.sequence = 'OPTION'
+                  AND o2.part_id = #{optionPartId}
+            )
+        </if>
+        <if test="optionPartId == '__NONE__'">
+            AND t.`option` IS NULL
+        </if>
+    </sql>
+
+    <select id="findOrderTableRows" resultType="com.example.backend.dto.OrderTableRowDto">
+        SELECT
+            t.order_id,
+            t.vehicle_type,
+            t.engine,
+            t.drive,
+            t.tire,
+            t.seat,
+            t.`option`,
+            t.order_date,
+            t.order_status
+        <include refid="orderTableFilteredBaseQuery"/>
+        ORDER BY t.order_id ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countOrderTableRows" resultType="int">
+        SELECT COUNT(1)
+        <include refid="orderTableFilteredBaseQuery"/>
+    </select>
+
+    <select id="findVehicleTypeOptions" resultType="string">
+        SELECT DISTINCT vehicle_type
+        FROM orders
+        WHERE vehicle_type IS NOT NULL
+        ORDER BY vehicle_type ASC
+    </select>
+
+    <select id="findSequencePartOptions" resultType="string">
+        SELECT DISTINCT part_id
+        FROM orders
+        WHERE sequence = #{sequence}
+          AND part_id IS NOT NULL
+          AND part_id &lt;&gt; 'NULL'
+        ORDER BY part_id ASC
+    </select>
+
+    <select id="findOptionPartOptions" resultType="string">
+        SELECT DISTINCT part_id
+        FROM orders
+        WHERE sequence = 'OPTION'
+          AND part_id IS NOT NULL
+          AND part_id &lt;&gt; 'NULL'
+        ORDER BY part_id ASC
+    </select>
+
+</mapper>
+
