@@ -16,6 +16,13 @@ public interface MaterialMapper {
 
     List<MaterialHistoryDto> selectMaterialHistory();
 
+    Integer selectBomQtyByMaterialId(@Param("materialId") String materialId);
+
+    int updatePendingOrdersToCompleted(
+            @Param("materialId") String materialId,
+            @Param("limit") Integer limit
+    );
+
     int insertStorageSnapshot(
             @Param("materialId") String materialId,
             @Param("stockQty") Integer stockQty

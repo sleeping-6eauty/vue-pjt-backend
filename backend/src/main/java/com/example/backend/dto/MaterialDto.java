@@ -6,7 +6,6 @@ public class MaterialDto {
     private String materialId;
     private String name;
     private Integer currentStock;
-    private Integer safetyStock;
     private Integer demandQty;
     private Integer unitPrice;
     private Integer requiredStock;
@@ -46,14 +45,6 @@ public class MaterialDto {
 
     public void setCurrentStock(Integer currentStock) {
         this.currentStock = currentStock;
-    }
-
-    public Integer getSafetyStock() {
-        return safetyStock;
-    }
-
-    public void setSafetyStock(Integer safetyStock) {
-        this.safetyStock = safetyStock;
     }
 
     public Integer getDemandQty() {
