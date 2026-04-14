@@ -83,19 +83,6 @@ public class UserService {
         return "SUCCESS";
     }
 
-    /**
-     * 사용자 등록 거절 (status를 Deleted로 변경)
-     */
-    public String rejectUser(Integer employeeId) {
-        Optional<User> user = userMapper.findByEmployeeId(employeeId);
-
-        if (user.isEmpty()) {
-            return "USER_NOT_FOUND";
-        }
-
-        userMapper.updateUserStatus(employeeId, "Deleted");
-        return "SUCCESS";
-    }
 
     /**
      * 사용자 삭제 (DB에서 제거)
