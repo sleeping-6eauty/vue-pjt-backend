@@ -118,34 +118,9 @@ public class UserController {
         return ResponseEntity.badRequest().body(Map.of("message", result));
     }
 
-    /**
-     * 6. 사용자 등록 거절
-     * PUT /api/users/{employeeId}/reject
-     */
-    @PutMapping("/{employeeId}/reject")
-    public ResponseEntity<?> rejectUser(@PathVariable Integer employeeId) {
-        String result = userService.rejectUser(employeeId);
-
-        if ("SUCCESS".equals(result)) {
-            Optional<User> user = userService.getUserByEmployeeId(employeeId);
-            return ResponseEntity.ok().body(Map.of(
-                    "message", "사용자 등록이 거절되었습니다.",
-                    "data", Map.of(
-                            "employeeId", user.get().getEmployeeId(),
-                            "status", user.get().getStatus()
-                    )
-            ));
-        } else if ("USER_NOT_FOUND".equals(result)) {
-            return ResponseEntity.status(404).body(Map.of(
-                    "message", "사용자를 찾을 수 없습니다.",
-                    "error", "USER_NOT_FOUND"
-            ));
-        }
-        return ResponseEntity.badRequest().body(Map.of("message", result));
-    }
 
     /**
-     * 7. 사용자 삭제
+     * 6. 사용자 삭제
      * DELETE /api/users/{employeeId}
      */
     @DeleteMapping("/{employeeId}")
@@ -169,7 +144,7 @@ public class UserController {
     }
 
     /**
-     * 8. 사용자 역할 변경
+     * 7. 사용자 역할 변경
      * PUT /api/users/{employeeId}/role
      */
     @PutMapping("/{employeeId}/role")

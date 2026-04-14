@@ -18,8 +18,8 @@ import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 
-@Configuration
-@Profile("!test")
+//@Configuration
+//@Profile("!test")
 public class DataSourceConfig {
 
     private static final String TRUSTSTORE_PASSWORD = "aivenchangeit";
