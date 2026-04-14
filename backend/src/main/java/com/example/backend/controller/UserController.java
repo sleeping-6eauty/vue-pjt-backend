@@ -20,11 +20,23 @@ public class UserController {
     /**
      * 1. 사용자 목록 조회
      * GET /api/users
-     */
+
     @GetMapping
     public ResponseEntity<?> getAllUsers() {
         List<User> users = userService.getAllUsers();
         return ResponseEntity.ok().body(users);
+    }
+     */
+
+    @GetMapping
+    public Map<String, Object> getUsers(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "all") String status,
+            @RequestParam(required = false) String searchType,
+            @RequestParam(required = false) String keyword
+    ) {
+        return userService.getUsersPaged(page, size, status, searchType, keyword);
     }
 
     /**

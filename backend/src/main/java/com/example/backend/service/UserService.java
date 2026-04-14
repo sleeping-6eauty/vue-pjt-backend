@@ -7,7 +7,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-
+import java.util.HashMap;
+import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -16,9 +17,33 @@ public class UserService {
 
     /**
      * 모든 사용자 조회 (Deleted 상태 제외)
-     */
+
     public List<User> getAllUsers() {
         return userMapper.getAllUsers();
+    }
+     */
+
+    // 페이지별 사용자 조회
+
+    public Map<String, Object> getUsersPaged(int page, int size, String status, String searchType, String keyword) {
+        int offset = (page - 1) * size;
+
+        List<User> users = userMapper.getUsersPaged(offset, size, status, searchType, keyword);
+        int totalCount = userMapper.countUsers(status, searchType, keyword);
+        int totalPages = (int) Math.ceil((double) totalCount / size);
+        boolean hasPendingUsers = userMapper.existsByStatus("Pending");
+        boolean hasDeletedUsers = userMapper.existsByStatus("Deleted");
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("users", users);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("totalCount", totalCount);
+        result.put("totalPages", totalPages);
+        result.put("hasPendingUsers", hasPendingUsers);
+        result.put("hasDeletedUsers", hasDeletedUsers);
+
+        return result;
     }
 
     /**
