@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.backend.mapper.UserMapper">
+
+    <select id="existsByStatus" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1
+            FROM `user`
+            WHERE status = #{status}
+        )
+    </select>
+
+    <select id="getUsersPaged" resultType="com.example.backend.entity.User">
+        SELECT employee_id, name, email, password, role, status
+        FROM `user`
+        <where>
+            <if test="status != null and status != '' and status != 'all'">
+                status = #{status}
+            </if>
+
+            <if test="keyword != null and keyword.trim() != ''">
+                <choose>
+                    <when test="searchType == 'name'">
+                        AND name LIKE CONCAT('%', #{keyword}, '%')
+                    </when>
+                    <when test="searchType == 'employee_id'">
+                        AND CAST(employee_id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                    </when>
+                </choose>
+            </if>
+        </where>
+        ORDER BY employee_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countUsers" resultType="int">
+        SELECT COUNT(*)
+        FROM `user`
+        <where>
+            <if test="status != null and status != '' and status != 'all'">
+                status = #{status}
+            </if>
+
+            <if test="keyword != null and keyword.trim() != ''">
+                <choose>
+                    <when test="searchType == 'name'">
+                        AND name LIKE CONCAT('%', #{keyword}, '%')
+                    </when>
+                    <when test="searchType == 'employee_id'">
+                        AND CAST(employee_id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                    </when>
+                </choose>
+            </if>
+        </where>
+    </select>
+
+    <select id="checkEmployeeId" resultType="int">
+        SELECT COUNT(*) FROM user WHERE employee_id = #{employeeId}
+    </select>
+
+    <select id="checkEmail" resultType="int">
+        SELECT COUNT(*) FROM user WHERE email = #{email}
+    </select>
+
+    <insert id="insertUser">
+        INSERT INTO user (employee_id, name, email, password, role, status)
+        VALUES (#{employeeId}, #{name}, #{email}, #{password}, #{role}, #{status})
+    </insert>
+
+    <select id="findByEmail" resultType="com.example.backend.entity.User">
+        SELECT
+            employee_id AS employeeId,
+            name, email, password, role, status
+        FROM user
+        WHERE email = #{email}
+    </select>
+
+    <select id="getAllUsers" resultType="com.example.backend.entity.User">
+        SELECT
+            employee_id AS employeeId,
+            name, email, password, role, status
+        FROM user
+        WHERE status != 'Deleted'
+        ORDER BY employee_id DESC
+    </select>
+
+    <update id="updateUserStatus">
+        UPDATE user
+        SET status = #{status}
+        WHERE employee_id = #{employeeId}
+    </update>
+
+    <select id="findByEmployeeId" resultType="com.example.backend.entity.User">
+        SELECT
+            employee_id AS employeeId,
+            name, email, password, role, status
+        FROM user
+        WHERE employee_id = #{employeeId}
+    </select>
+
+    <delete id="deleteUser">
+        DELETE FROM user
+        WHERE employee_id = #{employeeId}
+    </delete>
+
+    <update id="updateUserRole">
+        UPDATE user
+        SET role = #{role}
+        WHERE employee_id = #{employeeId}
+    </update>
+</mapper>
