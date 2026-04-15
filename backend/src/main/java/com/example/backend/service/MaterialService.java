@@ -41,39 +41,6 @@ public class MaterialService {
     }
 
     @Transactional
-    public MaterialDto useMaterialStock(String materialId) {
-        MaterialDto target = getRequiredMaterial(materialId);
-
-        int currentStock = safe(target.getCurrentStock());
-        int pendingDemandQty = safe(target.getDemandQty());
-        if (currentStock <= 0 || pendingDemandQty <= 0) {
-            return materialMapper.selectMaterialByMaterialId(materialId);
-        }
-
-        int bomQty = safe(materialMapper.selectBomQtyByMaterialId(materialId));
-        if (bomQty <= 0) {
-            bomQty = 1;
-        }
-
-        int pendingOrderCount = pendingDemandQty / bomQty;
-        int fulfillableOrderCount = Math.min(pendingOrderCount, currentStock / bomQty);
-        if (fulfillableOrderCount <= 0) {
-            return materialMapper.selectMaterialByMaterialId(materialId);
-        }
-
-        int updatedOrderCount = materialMapper.updatePendingOrdersToCompleted(materialId, fulfillableOrderCount);
-        if (updatedOrderCount <= 0) {
-            return materialMapper.selectMaterialByMaterialId(materialId);
-        }
-
-        int usedQty = updatedOrderCount * bomQty;
-        int nextStock = Math.max(0, currentStock - usedQty);
-        materialMapper.insertStorageSnapshot(materialId, nextStock);
-
-        return materialMapper.selectMaterialByMaterialId(materialId);
-    }
-
-    @Transactional
     public MaterialDto adjustMaterialStock(String materialId, Integer nextStock) {
         if (nextStock == null || nextStock < 0) {
             throw new IllegalArgumentException("nextStock must be 0 or greater.");

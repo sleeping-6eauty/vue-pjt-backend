@@ -39,15 +39,6 @@ public class MaterialController {
         }
     }
 
-    @PostMapping("/{materialId}/use")
-    public ResponseEntity<?> useMaterialStock(@PathVariable String materialId) {
-        try {
-            return ResponseEntity.ok(materialService.useMaterialStock(materialId));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
-        }
-    }
-
     @PutMapping("/{materialId}/stock")
     public ResponseEntity<?> adjustMaterialStock(
             @PathVariable String materialId,
