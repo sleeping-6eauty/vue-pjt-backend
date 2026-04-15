@@ -4,9 +4,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-backend/src/main/resources/application.properties
-application.properties
-application-*.properties
+#backend/src/main/resources/application.properties
+#application.properties
+#application-*.properties
 
 ### STS ###
 .apt_generated
@@ -36,4 +36,4 @@ build/
 ### VS Code ###
 .vscode/
 
-backend/src/main/resources/application.properties
+.env
