@@ -121,22 +121,6 @@
         ORDER BY h.stock_date DESC, h.part_id ASC
     </select>
 
-    <select id="selectBomQtyByMaterialId" resultType="java.lang.Integer">
-        SELECT IFNULL(b.qty, 0)
-        FROM bom b
-        WHERE b.part_id = #{materialId}
-        LIMIT 1
-    </select>
-
-    <update id="updatePendingOrdersToCompleted">
-        UPDATE `orders`
-        SET order_status = 'COMPLETED'
-        WHERE part_id = #{materialId}
-          AND order_status != 'COMPLETED'
-        ORDER BY order_date ASC, row_id ASC
-        LIMIT #{limit}
-    </update>
-
     <insert id="insertStorageSnapshot">
         INSERT INTO storage (
             part_id,
