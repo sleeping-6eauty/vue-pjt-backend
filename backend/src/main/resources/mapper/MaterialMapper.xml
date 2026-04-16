@@ -89,19 +89,26 @@
             h.part_id AS materialId,
             b.part_name AS materialName,
             CASE
+                WHEN h.normalized_operation_type = 'INBOUND' THEN 'in'
+                WHEN h.normalized_operation_type = 'OUTBOUND' THEN 'out'
+                WHEN h.normalized_operation_type = 'ADJUSTMENT' THEN 'adjust'
                 WHEN COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) &gt; 0 THEN 'in'
                 WHEN COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) &lt; 0 THEN 'out'
                 ELSE 'adjust'
             END AS type,
             CASE
-                WHEN COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) &gt; 0 THEN 'Inbound'
-                WHEN COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) &lt; 0 THEN 'Usage'
-                ELSE 'Adjust'
+                WHEN h.normalized_operation_type = 'INBOUND' THEN 'INBOUND'
+                WHEN h.normalized_operation_type = 'OUTBOUND' THEN 'OUTBOUND'
+                WHEN h.normalized_operation_type = 'ADJUSTMENT' THEN 'ADJUSTMENT'
+                WHEN COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) &gt; 0 THEN 'INBOUND'
+                WHEN COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) &lt; 0 THEN 'OUTBOUND'
+                ELSE 'ADJUSTMENT'
             END AS typeLabel,
             COALESCE(h.stock_qty - h.prev_stock_qty, h.stock_qty) AS delta,
             h.stock_qty AS afterStock,
             CASE
                 WHEN h.prev_stock_qty IS NULL THEN 'Initial stock snapshot'
+                WHEN h.normalized_operation_type = 'ADJUSTMENT' THEN 'Stock adjusted'
                 WHEN h.stock_qty &gt; h.prev_stock_qty THEN 'Stock replenished'
                 WHEN h.stock_qty &lt; h.prev_stock_qty THEN 'Stock consumed'
                 ELSE 'Stock adjusted'
@@ -111,6 +118,13 @@
                 s.part_id,
                 s.stock_date,
                 s.stock_qty,
+                s.operation_type,
+                CASE
+                    WHEN UPPER(TRIM(COALESCE(s.operation_type, ''))) IN ('INBOUND', 'IN') THEN 'INBOUND'
+                    WHEN UPPER(TRIM(COALESCE(s.operation_type, ''))) IN ('OUTBOUND', 'OUT', 'USAGE') THEN 'OUTBOUND'
+                    WHEN UPPER(TRIM(COALESCE(s.operation_type, ''))) IN ('ADJUSTMENT', 'ADJUST', 'MANUAL') THEN 'ADJUSTMENT'
+                    ELSE NULL
+                END AS normalized_operation_type,
                 LAG(s.stock_qty) OVER (
                     PARTITION BY s.part_id
                     ORDER BY s.stock_date
@@ -125,7 +139,8 @@
         INSERT INTO storage (
             part_id,
             stock_date,
-            stock_qty
+            stock_qty,
+            operation_type
         )
         SELECT
             #{materialId},
@@ -133,7 +148,8 @@
                 WHEN MAX(s.stock_date) IS NULL OR MAX(s.stock_date) &lt; NOW() THEN NOW()
                 ELSE DATE_ADD(MAX(s.stock_date), INTERVAL 1 SECOND)
             END,
-            #{stockQty}
+            #{stockQty},
+            #{operationType}
         FROM storage s
         WHERE s.part_id = #{materialId}
     </insert>

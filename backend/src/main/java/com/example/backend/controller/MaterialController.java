@@ -46,7 +46,8 @@ public class MaterialController {
     ) {
         try {
             Integer nextStock = request == null ? null : request.getNextStock();
-            return ResponseEntity.ok(materialService.adjustMaterialStock(materialId, nextStock));
+            String operationType = request == null ? null : request.getOperationType();
+            return ResponseEntity.ok(materialService.adjustMaterialStock(materialId, nextStock, operationType));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
