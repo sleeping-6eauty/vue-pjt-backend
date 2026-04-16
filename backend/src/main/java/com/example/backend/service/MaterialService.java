@@ -35,13 +35,13 @@ public class MaterialService {
         }
 
         int nextStock = safe(target.getCurrentStock()) + requiredQty;
-        materialMapper.insertStorageSnapshot(materialId, nextStock);
+        materialMapper.insertStorageSnapshot(materialId, nextStock, "INBOUND");
 
         return materialMapper.selectMaterialByMaterialId(materialId);
     }
 
     @Transactional
-    public MaterialDto adjustMaterialStock(String materialId, Integer nextStock) {
+    public MaterialDto adjustMaterialStock(String materialId, Integer nextStock, String operationType) {
         if (nextStock == null || nextStock < 0) {
             throw new IllegalArgumentException("nextStock must be 0 or greater.");
         }
@@ -51,7 +51,9 @@ public class MaterialService {
             return materialMapper.selectMaterialByMaterialId(materialId);
         }
 
-        materialMapper.insertStorageSnapshot(materialId, nextStock);
+        String normalizedOperationType = normalizeOperationType(operationType);
+
+        materialMapper.insertStorageSnapshot(materialId, nextStock, normalizedOperationType);
 
         return materialMapper.selectMaterialByMaterialId(materialId);
     }
@@ -70,5 +72,27 @@ public class MaterialService {
 
     private int safe(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private String normalizeOperationType(String operationType) {
+        if (operationType == null || operationType.isBlank()) {
+            throw new IllegalArgumentException("operationType is required.");
+        }
+
+        String normalized = operationType.trim().toUpperCase();
+        switch (normalized) {
+            case "INBOUND":
+            case "IN":
+                return "INBOUND";
+            case "OUTBOUND":
+            case "OUT":
+            case "USAGE":
+                return "OUTBOUND";
+            case "ADJUSTMENT":
+            case "ADJUST":
+                return "ADJUSTMENT";
+            default:
+                throw new IllegalArgumentException("Unsupported operationType: " + operationType);
+        }
     }
 }

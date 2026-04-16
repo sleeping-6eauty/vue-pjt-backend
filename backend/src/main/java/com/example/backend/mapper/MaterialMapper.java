@@ -18,6 +18,7 @@ public interface MaterialMapper {
 
     int insertStorageSnapshot(
             @Param("materialId") String materialId,
-            @Param("stockQty") Integer stockQty
+            @Param("stockQty") Integer stockQty,
+            @Param("operationType") String operationType
     );
 }
